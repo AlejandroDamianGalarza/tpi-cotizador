@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Core A simulado — cotización recuperable",
+  "description": "Borrador de contrato externo. Los importes monetarios se expresan en centavos de ARS.",
+  "oneOf": [
+    { "$ref": "#/$defs/solicitudCotizacion" },
+    { "$ref": "#/$defs/consultaCotizacion" },
+    { "$ref": "#/$defs/respuestaCotizacion" }
+  ],
+  "$defs": {
+    "centavos": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "texto": { "type": "string", "minLength": 1 },
+    "solicitudCotizacion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["codProducto", "codPlan", "codProductor", "zona"],
+      "properties": {
+        "codProducto": { "enum": ["BIC-01", "BIC-E01"] },
+        "codPlan": { "enum": ["SA100", "SA200"] },
+        "codProductor": { "$ref": "#/$defs/texto" },
+        "zona": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["provincia", "cp"],
+          "properties": {
+            "provincia": { "$ref": "#/$defs/texto" },
+            "cp": { "type": "string", "pattern": "^[0-9]{4}$", "minLength": 4, "maxLength": 4 }
+          }
+        }
+      }
+    },
+    "respuestaCotizacion": {
+      "oneOf": [
+        { "$ref": "#/$defs/ofertasEncontradas" },
+        { "$ref": "#/$defs/sinOferta" }
+      ]
+    },
+    "consultaCotizacion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cotizacionId"],
+      "properties": { "cotizacionId": { "$ref": "#/$defs/texto" } }
+    },
+    "ofertasEncontradas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["estado", "cotizacionId", "validaHasta", "moneda", "planes"],
+      "properties": {
+        "estado": { "const": "COTIZADA" },
+        "cotizacionId": { "$ref": "#/$defs/texto" },
+        "validaHasta": { "type": "string", "format": "date-time" },
+        "moneda": { "const": "ARS" },
+        "planes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/plan" } }
+      }
+    },
+    "sinOferta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["estado"],
+      "properties": {
+        "estado": {
+          "enum": ["SIN_OFERTA", "DATOS_INVALIDOS", "PRODUCTO_NO_SOPORTADO", "FALLA_TEMPORAL", "COTIZACION_NO_ENCONTRADA", "COTIZACION_VENCIDA"]
+        },
+        "motivo": { "$ref": "#/$defs/texto" }
+      }
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["idPlan", "denominacion", "periodoDias", "basePago", "premioCentavos", "desglose", "coberturas"],
+      "properties": {
+        "idPlan": { "$ref": "#/$defs/texto" },
+        "denominacion": { "$ref": "#/$defs/texto" },
+        "periodoDias": { "type": "integer", "minimum": 1 },
+        "basePago": { "enum": ["MENSUAL", "POR_PERIODO"] },
+        "premioCentavos": { "$ref": "#/$defs/centavos" },
+        "desglose": { "$ref": "#/$defs/desglose" },
+        "coberturas": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/cobertura" } },
+        "asistencias": { "type": "array", "items": { "$ref": "#/$defs/texto" } }
+      }
+    },
+    "desglose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primaPura", "gastosProduccion", "gastosExplotacion", "recargos", "impuestos", "sellados"],
+      "properties": {
+        "primaPura": { "$ref": "#/$defs/centavos" },
+        "gastosProduccion": { "$ref": "#/$defs/centavos" },
+        "gastosExplotacion": { "$ref": "#/$defs/centavos" },
+        "recargos": { "$ref": "#/$defs/centavos" },
+        "impuestos": { "$ref": "#/$defs/centavos" },
+        "sellados": { "$ref": "#/$defs/centavos" }
+      }
+    },
+    "cobertura": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["codigo", "estado"],
+      "properties": {
+        "codigo": { "$ref": "#/$defs/texto" },
+        "estado": { "enum": ["INCLUIDA", "NO_INCLUIDA", "NO_INFORMADA"] },
+        "descripcion": { "$ref": "#/$defs/texto" },
+        "limiteCentavos": { "$ref": "#/$defs/centavos" },
+        "franquiciaCentavos": { "$ref": "#/$defs/centavos" }
+      },
+      "if": { "properties": { "estado": { "const": "INCLUIDA" } }, "required": ["estado"] },
+      "then": { "required": ["descripcion"] },
+      "else": { "not": { "anyOf": [{ "required": ["limiteCentavos"] }, { "required": ["franquiciaCentavos"] }] } }
+    }
+  }
+}
